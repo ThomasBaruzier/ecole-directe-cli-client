@@ -1,0 +1,63 @@
+#!/bin/bash
+
+# Load data
+data=$(cat notes | jq -r .data.notes[])
+for ((i=14; i < $(tput cols); i=i+2)); do dashes+='-'; done
+readarray -t devoir <<< $(echo "$data" | jq -r .devoir)
+readarray -t codePeriode <<< $(echo "$data" | jq -r .codePeriode)
+readarray -t libelleMatiere <<< $(echo "$data" | jq -r .libelleMatiere)
+readarray -t typeDevoir <<< $(echo "$data" | jq -r .typeDevoir)
+readarray -t coef <<< $(echo "$data" | jq -r .coef)
+readarray -t noteSur <<< $(echo "$data" | jq -r .noteSur)
+readarray -t valeur <<< $(echo "$data" | jq -r .valeur)
+readarray -t nonSignificatif <<< $(echo "$data" | jq -r .nonSignificatif)
+readarray -t valeurisee <<< $(echo "$data" | jq -r .valeurisee)
+readarray -t moyenneClasse <<< $(echo "$data" | jq -r .moyenneClasse)
+readarray -t minClasse <<< $(echo "$data" | jq -r .minClasse)
+readarray -t maxClasse <<< $(echo "$data" | jq -r .maxClasse)
+declare -A coefSubject=(["MATHEMATIQUES"]=16 ["PHYSIQUE-CHIMIE"]=16 ["PHILOSOPHIE"]=8 ["HISTOIRE-GEOGRAPHIE"]=6 ["ANGLAIS LV1"]=6 ["ESPAGNOL LV2"]=6 ["ED.PHYSIQUE & SPORT."]=6 ["ENSEIGN.SCIENTIFIQUE"]=6 ["ENS. MORAL & CIVIQUE"]=2 ["EURO ANGLAIS - DNL:Maths"]=2  ["MATHS EXPERTES"]=2)
+
+# Display data
+for ((i=0; i < "${#codePeriode[@]}"; i++)); do
+  if [[ "${codePeriode[i-1]}" != "${codePeriode[i]}" ]]; then
+    trimester=$(egrep -o '[1-3]' <<< "${codePeriode[i]}")
+    echo -e "\n$dashes TRIMESTER $trimester $dashes\n"
+  fi
+  echo "Matière : ${libelleMatiere[i]} | Devoir : ${devoir[i]} | Type : ${typeDevoir[i]} | Note : ${valeur[i]}/${noteSur[i]} | Classe ${minClasse[i]} - ${moyenneClasse[i]} - ${maxClasse[i]} | Coef : ${coef[i]} | ${nonSignificatif[i]} ${valeurisee[i]}"
+  currentGrade=$(echo $(egrep -o '[0-9]+.?[0-9]+?' <<< "${valeur[i]}") | sed 's:,:\.:')
+  currentMaxGrade=$(echo $(egrep -o '[0-9]+.?[0-9]+?' <<< "${noteSur[i]}") | sed 's:,:\.:')
+  currentCoef=$(echo $(egrep -o '[0-9]+.?[0-9]+?' <<< "${coef[i]}") | sed 's:,:\.:')
+#  currentCoefSubject="$currentCoef*${coefSubject[${libelleMatiere[i]}]}"
+  if [[ -n "$currentGrade" && -n "currentMaxGrade" && -n "$currentCoef" ]]; then
+    case "${libelleMatiere[i]}" in
+      "ANGLAIS LV1") gradesANG+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefANG+=("+$currentCoef");;
+      "ED.PHYSIQUE & SPORT.") gradesEPS+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefEPS+=("+$currentCoef");;
+      "ENS. MORAL & CIVIQUE") gradesEMC+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefEMC+=("+$currentCoef");;
+      "ENSEIGN.SCIENTIFIQUE") gradesES+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefES+=("+$currentCoef");;
+      "ESPAGNOL LV2") gradesESP+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefESP+=("+$currentCoef");;
+      "EURO ANGLAIS - DNL:Maths") gradesEURO+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefEURO+=("+$currentCoef");;
+      "HISTOIRE-GEOGRAPHIE") gradesHG+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefHG+=("+$currentCoef");;
+      "MATHEMATIQUES") gradesMATHS+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefMATHS+=("+$currentCoef");;
+      "MATHS EXPERTES") gradesMATHSEXP+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefMATHSEXP+=("+$currentCoef");;
+      "PHILOSOPHIE") gradesPHILO+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefPHILO+=("+$currentCoef");;
+      "PHYSIQUE-CHIMIE") gradesPC+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefPC+=("+$currentCoef");;
+      *) echo ERROR; break;;
+    esac
+  fi
+  if [[ "${codePeriode[i]}" != "${codePeriode[i+1]}" ]]; then
+    echo
+    if [[ -n "$gradesANG" ]]; then printf "MOYENNE D' ANG : %0.2f\n" $(echo "scale=3;(0${gradesANG[@]})/(0${coefANG[@]})*20" | bc); fi
+    if [[ -n "$gradesEPS" ]]; then printf "MOYENNE D' EPS : %0.2f\n" $(echo "scale=3;(0${gradesEPS[@]})/(0${coefEPS[@]})*20" | bc); fi
+    if [[ -n "$gradesEMC" ]]; then printf "MOYENNE D' EMC : %0.2f\n" $(echo "scale=3;(0${gradesEMC[@]})/(0${coefEMC[@]})*20" | bc); fi
+    if [[ -n "$gradesES" ]]; then printf "MOYENNE D' E-S : %0.2f\n" $(echo "scale=3;(0${gradesES[@]})/(0${coefES[@]})*20" | bc); fi
+    if [[ -n "$gradesESP" ]]; then printf "MOYENNE D' ESP : %0.2f\n" $(echo "scale=3;(0${gradesESP[@]})/(0${coefESP[@]})*20" | bc); fi
+    if [[ -n "$gradesEURO" ]]; then printf "MOYENNE D' EURO: %0.2f\n" $(echo "scale=3;(0${gradesEURO[@]})/(0${coefEURO[@]})*20" | bc); fi
+    if [[ -n "$gradesHG" ]]; then printf "MOYENNE D' H-G : %0.2f\n" $(echo "scale=3;(0${gradesHG[@]})/(0${coefHG[@]})*20" | bc); fi
+    if [[ -n "$gradesMATHS" ]]; then printf "MOYENNE DE MATH: %0.2f\n" $(echo "scale=3;(0${gradesMATHS[@]})/(0${coefMATHS[@]})*20" | bc); fi
+    if [[ -n "$gradesMATHSEXP" ]]; then printf "MOYENNE DE MEXP: %0.2f\n" $(echo "scale=3;(0${gradesMATHSEXP[@]})/(0${coefMATHSEXP[@]})*20" | bc); fi
+    if [[ -n "$gradesPHILO" ]]; then printf "MOYENNE DE PHI : %0.2f\n" $(echo "scale=3;(0${gradesPHILO[@]})/(0${coefPHILO[@]})*20" | bc); fi
+    if [[ -n "$gradesPC" ]]; then printf "MOYENNE DE P-C : %0.2f\n" $(echo "scale=3;(0${gradesPC[@]})/(0${coefPC[@]})*20" | bc); fi
+    unset gradesANG coefANG gradesEPS coefEPS gradesEMC coefEMC gradesES coefES gradesESP coefESP gradesEURO coefEURO gradesHG coefHG gradesMATHS coefMATHS gradesMATHSEXP coefMATHSEXP gradesPHILO coefPHILO gradesPC coefPC
+  fi
+done
+echo
