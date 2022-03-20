@@ -1,3 +1,5 @@
+# École Directe Grades Calculator
+
 Ce script pour bash vous permet de calculer vos moyennes école directe sans avoir à attendre 2-3 jours que cela se fasse sur le site.
 
 Pour l'instant, le programme est semi-automatisé, il faut récuperer les données manuellement.

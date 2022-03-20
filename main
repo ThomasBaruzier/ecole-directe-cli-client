@@ -1,8 +1,10 @@
 #!/bin/bash
 
 # Load data
-data=$(cat notes | jq -r .data.notes[])
+source ~/scripts/libUtils
+toAdd="+($currentGrade/$currentMaxGrade)*$currentCoef"
 for ((i=14; i < $(tput cols); i=i+2)); do dashes+='-'; done
+data=$(cat notes | jq -r .data.notes[])
 readarray -t devoir <<< $(echo "$data" | jq -r .devoir)
 readarray -t codePeriode <<< $(echo "$data" | jq -r .codePeriode)
 readarray -t libelleMatiere <<< $(echo "$data" | jq -r .libelleMatiere)
@@ -10,8 +12,6 @@ readarray -t typeDevoir <<< $(echo "$data" | jq -r .typeDevoir)
 readarray -t coef <<< $(echo "$data" | jq -r .coef)
 readarray -t noteSur <<< $(echo "$data" | jq -r .noteSur)
 readarray -t valeur <<< $(echo "$data" | jq -r .valeur)
-readarray -t nonSignificatif <<< $(echo "$data" | jq -r .nonSignificatif)
-readarray -t valeurisee <<< $(echo "$data" | jq -r .valeurisee)
 readarray -t moyenneClasse <<< $(echo "$data" | jq -r .moyenneClasse)
 readarray -t minClasse <<< $(echo "$data" | jq -r .minClasse)
 readarray -t maxClasse <<< $(echo "$data" | jq -r .maxClasse)
@@ -19,31 +19,52 @@ declare -A coefSubject=(["MATHEMATIQUES"]=16 ["PHYSIQUE-CHIMIE"]=16 ["PHILOSOPHI
 
 # Display data
 for ((i=0; i < "${#codePeriode[@]}"; i++)); do
+  valeur[i]=$(echo $(egrep -o '[0-9]+.?[0-9]+?' <<< "${valeur[i]}") | sed 's:,:\.:')
+  noteSur[i]=$(echo $(egrep -o '[0-9]+.?[0-9]+?' <<< "${noteSur[i]}") | sed 's:,:\.:')
+  coef[i]=$(echo $(egrep -o '[0-9]+.?[0-9]+?' <<< "${coef[i]}") | sed 's:,:\.:')
+#  currentCoefSubject="$currentCoef*${coefSubject[${libelleMatiere[i]}]}"
   if [[ "${codePeriode[i-1]}" != "${codePeriode[i]}" ]]; then
     trimester=$(egrep -o '[1-3]' <<< "${codePeriode[i]}")
-    echo -e "\n$dashes TRIMESTER $trimester $dashes\n"
+    echo -e "\n$dashes TRIMESTRE $trimester $dashes\n"
   fi
-  echo "Matière : ${libelleMatiere[i]} | Devoir : ${devoir[i]} | Type : ${typeDevoir[i]} | Note : ${valeur[i]}/${noteSur[i]} | Classe ${minClasse[i]} - ${moyenneClasse[i]} - ${maxClasse[i]} | Coef : ${coef[i]} | ${nonSignificatif[i]} ${valeurisee[i]}"
-  currentGrade=$(echo $(egrep -o '[0-9]+.?[0-9]+?' <<< "${valeur[i]}") | sed 's:,:\.:')
-  currentMaxGrade=$(echo $(egrep -o '[0-9]+.?[0-9]+?' <<< "${noteSur[i]}") | sed 's:,:\.:')
-  currentCoef=$(echo $(egrep -o '[0-9]+.?[0-9]+?' <<< "${coef[i]}") | sed 's:,:\.:')
-#  currentCoefSubject="$currentCoef*${coefSubject[${libelleMatiere[i]}]}"
-  if [[ -n "$currentGrade" && -n "currentMaxGrade" && -n "$currentCoef" ]]; then
+  case "${typeDevoir[i]}" in
+    "Interrogation écrite") typeDevoir[i]='IE  ';;
+    "Devoir Surveillé") typeDevoir[i]='DS  ';;
+    "Évaluation orale") typeDevoir[i]='ORAL';;
+    "Devoir à la maison") typeDevoir[i]='DNS ';;
+    "Travaux Pratiques") typeDevoir[i]='TP  ';;
+  esac
+  case "${libelleMatiere[i]}" in
+    "ANGLAIS LV1") libelleMatiere[i]='ANG ';;
+    "ED.PHYSIQUE & SPORT.") libelleMatiere[i]='EPS ';;
+    "ENS. MORAL & CIVIQUE") libelleMatiere[i]='EMC ';;
+    "ENSEIGN.SCIENTIFIQUE") libelleMatiere[i]='E-S ';;
+    "ESPAGNOL LV2") libelleMatiere[i]='ESP ';;
+    "EURO ANGLAIS - DNL:Maths") libelleMatiere[i]='EURO';;
+    "HISTOIRE-GEOGRAPHIE") libelleMatiere[i]='H-G ';;
+    "MATHEMATIQUES") libelleMatiere[i]='MATH';;
+    "MATHS EXPERTES") libelleMatiere[i]='MEXP';;
+    "PHILOSOPHIE") libelleMatiere[i]='PHI ';;
+    "PHYSIQUE-CHIMIE") libelleMatiere[i]='P-C ';;
+    *) echo "ERREUR : la matière ${libelleMatiere[i]} n'est pas supportée"; break;;
+  esac
+  if [[ -n "${valeur[i]}" && -n "${noteSur[i]}" && -n "${coef[i]}" ]]; then
     case "${libelleMatiere[i]}" in
-      "ANGLAIS LV1") gradesANG+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefANG+=("+$currentCoef");;
-      "ED.PHYSIQUE & SPORT.") gradesEPS+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefEPS+=("+$currentCoef");;
-      "ENS. MORAL & CIVIQUE") gradesEMC+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefEMC+=("+$currentCoef");;
-      "ENSEIGN.SCIENTIFIQUE") gradesES+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefES+=("+$currentCoef");;
-      "ESPAGNOL LV2") gradesESP+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefESP+=("+$currentCoef");;
-      "EURO ANGLAIS - DNL:Maths") gradesEURO+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefEURO+=("+$currentCoef");;
-      "HISTOIRE-GEOGRAPHIE") gradesHG+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefHG+=("+$currentCoef");;
-      "MATHEMATIQUES") gradesMATHS+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefMATHS+=("+$currentCoef");;
-      "MATHS EXPERTES") gradesMATHSEXP+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefMATHSEXP+=("+$currentCoef");;
-      "PHILOSOPHIE") gradesPHILO+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefPHILO+=("+$currentCoef");;
-      "PHYSIQUE-CHIMIE") gradesPC+=("+($currentGrade/$currentMaxGrade)*$currentCoef"); coefPC+=("+$currentCoef");;
-      *) echo ERROR; break;;
+      "ANG ") gradesANG+=("$toAdd"); coefANG+=("${coef[i]}");;
+      "EPS ") gradesEPS+=("$toAdd"); coefEPS+=("${coef[i]}");;
+      "EMC ") gradesEMC+=("$toAdd"); coefEMC+=("${coef[i]}");;
+      "E-S ") gradesES+=("$toAdd"); coefES+=("${coef[i]}");;
+      "ESP ") gradesESP+=("$toAdd"); coefESP+=("${coef[i]}");;
+      "EURO") gradesEURO+=("$toAdd"); coefEURO+=("${coef[i]}");;
+      "H-G ") gradesHG+=("$toAdd"); coefHG+=("${coef[i]}");;
+      "MATH") gradesMATHS+=("$toAdd"); coefMATHS+=("${coef[i]}");;
+      "MEXP") gradesMATHSEXP+=("$toAdd"); coefMATHSEXP+=("${coef[i]}");;
+      "PHI ") gradesPHILO+=("$toAdd"); coefPHILO+=("${coef[i]}");;
+      "P-C ") gradesPC+=("$toAdd"); coefPC+=("${coef[i]}");;
+      *) echo "ERREUR : la matière ${libelleMatiere[i]} n'est pas supportée"; break;;
     esac
   fi
+  echo -e "${libelleMatiere[i]} | ${typeDevoir[i]} : ${valeur[i]}/${noteSur[i]} (${coef[i]}) | ${minClasse[i]}-${moyenneClasse[i]}-${maxClasse[i]}" #| ${devoir[i]}"
   if [[ "${codePeriode[i]}" != "${codePeriode[i+1]}" ]]; then
     echo
     if [[ -n "$gradesANG" ]]; then printf "MOYENNE D' ANG : %0.2f\n" $(echo "scale=3;(0${gradesANG[@]})/(0${coefANG[@]})*20" | bc); fi
