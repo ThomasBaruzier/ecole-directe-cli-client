@@ -2,7 +2,6 @@
 
 # Load data
 source ~/scripts/libUtils
-toAdd="+($currentGrade/$currentMaxGrade)*$currentCoef"
 for ((i=14; i < $(tput cols); i=i+2)); do dashes+='-'; done
 data=$(cat notes | jq -r .data.notes[])
 readarray -t devoir <<< $(echo "$data" | jq -r .devoir)
@@ -33,6 +32,7 @@ for ((i=0; i < "${#codePeriode[@]}"; i++)); do
     "Évaluation orale") typeDevoir[i]='ORAL';;
     "Devoir à la maison") typeDevoir[i]='DNS ';;
     "Travaux Pratiques") typeDevoir[i]='TP  ';;
+    "Activités sportives") typeDevoir[i]='IE  ';;
   esac
   case "${libelleMatiere[i]}" in
     "ANGLAIS LV1") libelleMatiere[i]='ANG ';;
@@ -49,35 +49,36 @@ for ((i=0; i < "${#codePeriode[@]}"; i++)); do
     *) echo "ERREUR : la matière ${libelleMatiere[i]} n'est pas supportée"; break;;
   esac
   if [[ -n "${valeur[i]}" && -n "${noteSur[i]}" && -n "${coef[i]}" ]]; then
+    toAdd="+(${valeur[i]}/${noteSur[i]})*${coef[i]}"
     case "${libelleMatiere[i]}" in
-      "ANG ") gradesANG+=("$toAdd"); coefANG+=("${coef[i]}");;
-      "EPS ") gradesEPS+=("$toAdd"); coefEPS+=("${coef[i]}");;
-      "EMC ") gradesEMC+=("$toAdd"); coefEMC+=("${coef[i]}");;
-      "E-S ") gradesES+=("$toAdd"); coefES+=("${coef[i]}");;
-      "ESP ") gradesESP+=("$toAdd"); coefESP+=("${coef[i]}");;
-      "EURO") gradesEURO+=("$toAdd"); coefEURO+=("${coef[i]}");;
-      "H-G ") gradesHG+=("$toAdd"); coefHG+=("${coef[i]}");;
-      "MATH") gradesMATHS+=("$toAdd"); coefMATHS+=("${coef[i]}");;
-      "MEXP") gradesMATHSEXP+=("$toAdd"); coefMATHSEXP+=("${coef[i]}");;
-      "PHI ") gradesPHILO+=("$toAdd"); coefPHILO+=("${coef[i]}");;
-      "P-C ") gradesPC+=("$toAdd"); coefPC+=("${coef[i]}");;
+      "ANG ") gradesANG+=("$toAdd"); coefANG+=("+${coef[i]}");;
+      "EPS ") gradesEPS+=("$toAdd"); coefEPS+=("+${coef[i]}");;
+      "EMC ") gradesEMC+=("$toAdd"); coefEMC+=("+${coef[i]}");;
+      "E-S ") gradesES+=("$toAdd"); coefES+=("+${coef[i]}");;
+      "ESP ") gradesESP+=("$toAdd"); coefESP+=("+${coef[i]}");;
+      "EURO") gradesEURO+=("$toAdd"); coefEURO+=("+${coef[i]}");;
+      "H-G ") gradesHG+=("$toAdd"); coefHG+=("+${coef[i]}");;
+      "MATH") gradesMATHS+=("$toAdd"); coefMATHS+=("+${coef[i]}");;
+      "MEXP") gradesMATHSEXP+=("$toAdd"); coefMATHSEXP+=("+${coef[i]}");;
+      "PHI ") gradesPHILO+=("$toAdd"); coefPHILO+=("+${coef[i]}");;
+      "P-C ") gradesPC+=("$toAdd"); coefPC+=("+${coef[i]}");;
       *) echo "ERREUR : la matière ${libelleMatiere[i]} n'est pas supportée"; break;;
     esac
   fi
-  echo -e "${libelleMatiere[i]} | ${typeDevoir[i]} : ${valeur[i]}/${noteSur[i]} (${coef[i]}) | ${minClasse[i]}-${moyenneClasse[i]}-${maxClasse[i]}" #| ${devoir[i]}"
+  printf '%s | %s | %4.1f/%3.0f (%4.1f) | %5.1f-%5.1f-%5.1f | %s' "${libelleMatiere[i]}" "${typeDevoir[i]}" "${valeur[i]}" "${noteSur[i]}" "${coef[i]})" "${minClasse[i]}" "${moyenneClasse[i]}" "${maxClasse[i]}" "${devoir[i]}"
   if [[ "${codePeriode[i]}" != "${codePeriode[i+1]}" ]]; then
     echo
-    if [[ -n "$gradesANG" ]]; then printf "MOYENNE D' ANG : %0.2f\n" $(echo "scale=3;(0${gradesANG[@]})/(0${coefANG[@]})*20" | bc); fi
-    if [[ -n "$gradesEPS" ]]; then printf "MOYENNE D' EPS : %0.2f\n" $(echo "scale=3;(0${gradesEPS[@]})/(0${coefEPS[@]})*20" | bc); fi
-    if [[ -n "$gradesEMC" ]]; then printf "MOYENNE D' EMC : %0.2f\n" $(echo "scale=3;(0${gradesEMC[@]})/(0${coefEMC[@]})*20" | bc); fi
-    if [[ -n "$gradesES" ]]; then printf "MOYENNE D' E-S : %0.2f\n" $(echo "scale=3;(0${gradesES[@]})/(0${coefES[@]})*20" | bc); fi
-    if [[ -n "$gradesESP" ]]; then printf "MOYENNE D' ESP : %0.2f\n" $(echo "scale=3;(0${gradesESP[@]})/(0${coefESP[@]})*20" | bc); fi
-    if [[ -n "$gradesEURO" ]]; then printf "MOYENNE D' EURO: %0.2f\n" $(echo "scale=3;(0${gradesEURO[@]})/(0${coefEURO[@]})*20" | bc); fi
-    if [[ -n "$gradesHG" ]]; then printf "MOYENNE D' H-G : %0.2f\n" $(echo "scale=3;(0${gradesHG[@]})/(0${coefHG[@]})*20" | bc); fi
-    if [[ -n "$gradesMATHS" ]]; then printf "MOYENNE DE MATH: %0.2f\n" $(echo "scale=3;(0${gradesMATHS[@]})/(0${coefMATHS[@]})*20" | bc); fi
-    if [[ -n "$gradesMATHSEXP" ]]; then printf "MOYENNE DE MEXP: %0.2f\n" $(echo "scale=3;(0${gradesMATHSEXP[@]})/(0${coefMATHSEXP[@]})*20" | bc); fi
-    if [[ -n "$gradesPHILO" ]]; then printf "MOYENNE DE PHI : %0.2f\n" $(echo "scale=3;(0${gradesPHILO[@]})/(0${coefPHILO[@]})*20" | bc); fi
-    if [[ -n "$gradesPC" ]]; then printf "MOYENNE DE P-C : %0.2f\n" $(echo "scale=3;(0${gradesPC[@]})/(0${coefPC[@]})*20" | bc); fi
+    if [[ -n "$gradesANG" ]]; then printf "MOYENNE D' ANG  : %5.2f\n" $(echo "scale=3;(0${gradesANG[@]})/(0${coefANG[@]})*20" | bc); fi
+    if [[ -n "$gradesEPS" ]]; then printf "MOYENNE D' EPS  : %5.2f\n" $(echo "scale=3;(0${gradesEPS[@]})/(0${coefEPS[@]})*20" | bc); fi
+    if [[ -n "$gradesEMC" ]]; then printf "MOYENNE D' EMC  : %5.2f\n" $(echo "scale=3;(0${gradesEMC[@]})/(0${coefEMC[@]})*20" | bc); fi
+    if [[ -n "$gradesES" ]]; then printf "MOYENNE D' E-S  : %5.2f\n" $(echo "scale=3;(0${gradesES[@]})/(0${coefES[@]})*20" | bc); fi
+    if [[ -n "$gradesESP" ]]; then printf "MOYENNE D' ESP  : %5.2f\n" $(echo "scale=3;(0${gradesESP[@]})/(0${coefESP[@]})*20" | bc); fi
+    if [[ -n "$gradesEURO" ]]; then printf "MOYENNE D' EURO : %5.2f\n" $(echo "scale=3;(0${gradesEURO[@]})/(0${coefEURO[@]})*20" | bc); fi
+    if [[ -n "$gradesHG" ]]; then printf "MOYENNE D' H-G  : %5.2f\n" $(echo "scale=3;(0${gradesHG[@]})/(0${coefHG[@]})*20" | bc); fi
+    if [[ -n "$gradesMATHS" ]]; then printf "MOYENNE DE MATH : %5.2f\n" $(echo "scale=3;(0${gradesMATHS[@]})/(0${coefMATHS[@]})*20" | bc); fi
+    if [[ -n "$gradesMATHSEXP" ]]; then printf "MOYENNE DE MEXP : %5.2f\n" $(echo "scale=3;(0${gradesMATHSEXP[@]})/(0${coefMATHSEXP[@]})*20" | bc); fi
+    if [[ -n "$gradesPHILO" ]]; then printf "MOYENNE DE PHI  : %5.2f\n" $(echo "scale=3;(0${gradesPHILO[@]})/(0${coefPHILO[@]})*20" | bc); fi
+    if [[ -n "$gradesPC" ]]; then printf "MOYENNE DE P-C  : %5.2f\n" $(echo "scale=3;(0${gradesPC[@]})/(0${coefPC[@]})*20" | bc); fi
     unset gradesANG coefANG gradesEPS coefEPS gradesEMC coefEMC gradesES coefES gradesESP coefESP gradesEURO coefEURO gradesHG coefHG gradesMATHS coefMATHS gradesMATHSEXP coefMATHSEXP gradesPHILO coefPHILO gradesPC coefPC
   fi
 done
