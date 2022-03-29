@@ -65,7 +65,7 @@ for ((i=0; i < "${#codePeriode[@]}"; i++)); do
       *) echo "ERREUR : la matière ${libelleMatiere[i]} n'est pas supportée"; break;;
     esac
   fi
-  printf '%s | %s | %4.1f/%3.0f (%4.1f) | %5.1f-%5.1f-%5.1f | %s' "${libelleMatiere[i]}" "${typeDevoir[i]}" "${valeur[i]}" "${noteSur[i]}" "${coef[i]})" "${minClasse[i]}" "${moyenneClasse[i]}" "${maxClasse[i]}" "${devoir[i]}"
+  printf '%s | %s | %4.1f/%3.0f (%4.1f) | %4.1f/%4.1f/%4.1f | %s\n' "${libelleMatiere[i]}" "${typeDevoir[i]}" "${valeur[i]}" "${noteSur[i]}" "${coef[i]}" "${minClasse[i]}" "${moyenneClasse[i]}" "${maxClasse[i]}" "${devoir[i]}" | cut -c -$COLUMNS
   if [[ "${codePeriode[i]}" != "${codePeriode[i+1]}" ]]; then
     echo
     if [[ -n "$gradesANG" ]]; then printf "MOYENNE D' ANG  : %5.2f\n" $(echo "scale=3;(0${gradesANG[@]})/(0${coefANG[@]})*20" | bc); fi
