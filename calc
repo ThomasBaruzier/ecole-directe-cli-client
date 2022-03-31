@@ -1,26 +1,45 @@
 #!/bin/bash
 
 # Load data
-source ~/scripts/libUtils
-for ((i=14; i < $(tput cols); i=i+2)); do dashes+='-'; done
-data=$(cat notes | jq -r .data.notes[])
-readarray -t devoir <<< $(echo "$data" | jq -r .devoir)
-readarray -t codePeriode <<< $(echo "$data" | jq -r .codePeriode)
-readarray -t libelleMatiere <<< $(echo "$data" | jq -r .libelleMatiere)
-readarray -t typeDevoir <<< $(echo "$data" | jq -r .typeDevoir)
-readarray -t coef <<< $(echo "$data" | jq -r .coef)
-readarray -t noteSur <<< $(echo "$data" | jq -r .noteSur)
-readarray -t valeur <<< $(echo "$data" | jq -r .valeur)
-readarray -t moyenneClasse <<< $(echo "$data" | jq -r .moyenneClasse)
-readarray -t minClasse <<< $(echo "$data" | jq -r .minClasse)
-readarray -t maxClasse <<< $(echo "$data" | jq -r .maxClasse)
-declare -A coefSubject=(["MATHEMATIQUES"]=16 ["PHYSIQUE-CHIMIE"]=16 ["PHILOSOPHIE"]=8 ["HISTOIRE-GEOGRAPHIE"]=6 ["ANGLAIS LV1"]=6 ["ESPAGNOL LV2"]=6 ["ED.PHYSIQUE & SPORT."]=6 ["ENSEIGN.SCIENTIFIQUE"]=6 ["ENS. MORAL & CIVIQUE"]=2 ["EURO ANGLAIS - DNL:Maths"]=2  ["MATHS EXPERTES"]=2)
+if (( $(tput co) < 46 )); then echo Terminal too small; exit; fi
+for ((i=13; i < $(tput co)-1; i=i+2)); do dashes+='-'; done
+readarray -t json <<< $(cat notes | jq -r .data.notes[])
+lines="${#json[@]}"
+for ((i=3; i < "$lines"; i++)); do
+  [[ "${json[i]:3:4}" =~ 'devo' ]] && devoir+=(" | ${json[i]:13:-2}")
+  [[ "${json[i]}" =~ '"codePeriode":' ]] && codePeriode+=("${json[i]:18:-2}")
+  [[ "${json[i]}" =~ '"libelleMatiere":' ]] && libelleMatiere+=("${json[i]:21:-2}")
+  [[ "${json[i]}" =~ '"typeDevoir":' ]] && typeDevoir+=("${json[i]:17:-2}")
+  [[ "${json[i]}" =~ '"coef":' ]] && coef+=("${json[i]:11:-2}")
+  [[ "${json[i]}" =~ '"noteSur":' ]] && noteSur+=("${json[i]:14:-2}")
+  [[ "${json[i]}" =~ '"valeur":' ]] && valeur+=("${json[i]:13:-2}")
+  [[ "${json[i]}" =~ '"moyenneClasse":' ]] && moyenneClasse+=("${json[i]:20:-2}")
+  [[ "${json[i]}" =~ '"minClasse":' ]] && minClasse+=("${json[i]:16:-2}")
+  [[ "${json[i]}" =~ '"maxClasse":' ]] && maxClasse+=("${json[i]:16:-2}")
+done
+echo devoir ${#devoir[@]}
+echo codePer ${#codePeriode[@]}
+echo libelleMatiere ${#libelleMatiere[@]}
+echo typeDevoir ${#typeDevoir[@]}
+echo  ${#[@]}
+echo  ${#[@]}
+echo  ${#[@]}
+echo  ${#[@]}
+echo  ${#[@]}
 
+exit
 # Display data
 for ((i=0; i < "${#codePeriode[@]}"; i++)); do
-  valeur[i]=$(echo $(egrep -o '[0-9]+.?[0-9]+?' <<< "${valeur[i]}") | sed 's:,:\.:')
-  noteSur[i]=$(echo $(egrep -o '[0-9]+.?[0-9]+?' <<< "${noteSur[i]}") | sed 's:,:\.:')
-  coef[i]=$(echo $(egrep -o '[0-9]+.?[0-9]+?' <<< "${coef[i]}") | sed 's:,:\.:')
+  if [[ "${valeur[i]}" != 'Abs ' ]]; then
+    valeur[i]="${valeur[i]//[^0-9,]/}"
+    valeur[i]="${valeur[i]/,/.}"
+  else
+    valeur[i]=''
+  fi
+  noteSur[i]="${noteSur[i]//[^0-9,]/}"
+  noteSur[i]="${noteSur[i]/,/.}"
+  coef[i]="${coef[i]//[^0-9,]/}"
+  coef[i]="${coef[i]/,/.}"
 #  currentCoefSubject="$currentCoef*${coefSubject[${libelleMatiere[i]}]}"
   if [[ "${codePeriode[i-1]}" != "${codePeriode[i]}" ]]; then
     trimester=$(egrep -o '[1-3]' <<< "${codePeriode[i]}")
@@ -65,7 +84,7 @@ for ((i=0; i < "${#codePeriode[@]}"; i++)); do
       *) echo "ERREUR : la matière ${libelleMatiere[i]} n'est pas supportée"; break;;
     esac
   fi
-  printf '%s | %s | %4.1f/%3.0f (%4.1f) | %4.1f/%4.1f/%4.1f | %s\n' "${libelleMatiere[i]}" "${typeDevoir[i]}" "${valeur[i]}" "${noteSur[i]}" "${coef[i]}" "${minClasse[i]}" "${moyenneClasse[i]}" "${maxClasse[i]}" "${devoir[i]}" | cut -c -$COLUMNS
+  printf '%s | %s | %4.1f/%2.0f (%4.1f) | %4.1f %4.1f %4.1f%s\n' "${libelleMatiere[i]}" "${typeDevoir[i]}" "${valeur[i]}" "${noteSur[i]}" "${coef[i]}" "${minClasse[i]}" "${moyenneClasse[i]}" "${maxClasse[i]}" "${devoir[i]:0:$(($(tput co)-45))}"
   if [[ "${codePeriode[i]}" != "${codePeriode[i+1]}" ]]; then
     echo
     if [[ -n "$gradesANG" ]]; then printf "MOYENNE D' ANG  : %5.2f\n" $(echo "scale=3;(0${gradesANG[@]})/(0${coefANG[@]})*20" | bc); fi
