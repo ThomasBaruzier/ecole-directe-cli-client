@@ -48,7 +48,7 @@ loginMenu() {
       else
         echo -e "> No saved accounts found\n"
       fi
-      echo -e "\e[36m[n] - New connection\e[0m"
+      echo -e "\e[36m[n] - New account\e[0m"
       if [[ $(du -b .data/home | cut -f -1) != 0 ]]; then
         echo -e "\e[36m[l] - Use local data, no auth\e[0m"
       fi
@@ -85,7 +85,7 @@ loginMenu() {
 login() {
 
     if [[ "$localData" != 'true' ]]; then
-      echo "Connecting as $1..."
+      echo "Login in as $1..."
       request=$(curl -# 'https://api.ecoledirecte.com/v3/login.awp?v=4.6.0' \
       -d 'data={"identifiant":"'"$1"'","motdepasse":"'"$2"'"}')
       if [[ $(echo "$request" | jq .code) != '200' ]]; then
