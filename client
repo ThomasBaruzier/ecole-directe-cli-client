@@ -1,0 +1,274 @@
+#!/bin/bash
+
+
+logo() {
+
+unset blank
+cols=$(tput cols)
+for ((i=34; i < "$cols"-1; i+=2)); do blank+=' '; done
+echo
+echo
+echo "$blank   _______        ___          __"
+echo "$blank  / __/ _ \  ____/ (_)__ ___  / /_"
+echo "$blank / __/ // / / __/ / / -_) _ \/ __/"
+echo "$blank/___/____/  \__/_/_/\__/_//_/\__/"
+echo "$blank                      By TyraVex"
+echo
+
+}
+
+loginMenu() {
+
+      clear
+      logo
+      case "$1" in
+        error) echo -e "\e[31mERROR : $2\e[0m";;
+        info) echo -e "\e[33mINFO : $2\e[0m";;
+        silent) echo "$2"
+      esac
+      mkdir -p .data
+      touch .data/last .data/credentials .data/home .data/grades
+      unset dashes
+      cols=$(tput cols)
+      for ((i=18; i < "$cols"-1; i+=2)); do dashes+='-'; done
+      echo -e "\e[34m\n$dashes AUTHENTIFICATION $dashes\n\e[0m"
+      readarray -t accs < .data/credentials
+      last=$(cat .data/last)
+      if [[ -n "$accs" ]]; then
+        for ((i=0; i < "${#accs[@]}"; i++)); do
+          acc=("${accs[i]// /%SPACE%}")
+          acc=(${acc//:/ })
+          if [[ "$last" =~ "${acc[0]}" ]]; then
+            echo -e "\e[32m[$((i+1))] - ${acc[0]//%SPACE%/ }\e[0m"
+          else
+            echo -e "\e[33m[$((i+1))] - ${acc[0]//%SPACE%/ }\e[0m"
+          fi
+        done
+        echo -e "\e[36m\n[ø] - Use last\e[0m"
+      else
+        echo -e "> No saved accounts found\n"
+      fi
+      echo -e "\e[36m[n] - New connection\e[0m"
+      if [[ $(du -b .data/home | cut -f -1) != 0 ]]; then
+        echo -e "\e[36m[l] - Use local data, no auth\e[0m"
+      fi
+      echo -e "\e[31m[e] - Exit\n\e[0m"
+      read -p "Option : " choice
+      echo
+      unset localData
+      case "$choice" in
+        '')last=$(cat .data/last)
+           last=("${last// /%SPACE%}")
+           acc=(${last//:/ })
+           login "${acc[0]//%SPACE%/ }" "${acc[1]//%SPACE%/ }";;
+        [0-9]|[0-9][0-9])
+           echo "${accs[choice-1]}" > .data/last
+           acc=("${accs[choice-1]// /%SPACE%}")
+           acc=(${acc//:/ })
+           login "${acc[0]//%SPACE%/ }" "${acc[1]//%SPACE%/ }";;
+        n) read -p "Username : " user
+           read -p "Password : " pass
+           if [[ -z "$user" || -z "$pass" ]]; then
+             loginMenu 'error' 'Empty input'
+           fi
+           echo
+           login "$user" "$pass";;
+        l) localData=true
+           login;;
+        e) exit;;
+        *) loginMenu 'error' 'Invalid input'
+           return;;
+      esac
+
+}
+
+login() {
+
+    if [[ "$localData" != 'true' ]]; then
+      echo "Connecting as $1..."
+      request=$(curl -s 'https://api.ecoledirecte.com/v3/login.awp?v=4.6.0' \
+      -d 'data={"identifiant":"'"$1"'","motdepasse":"'"$2"'"}')
+      if [[ $(echo "$request" | jq .code) != '200' ]]; then
+        loginMenu 'error' 'Wrong credentials or unknown error'
+        return
+      fi
+    else
+      request=$(cat .data/home)
+    fi
+    name=$(echo "$request" | jq -r .data.accounts[].prenom)
+    fname=$(echo "$request" | jq -r .data.accounts[].nom)
+    if [[ "$localData" != 'true' ]]; then
+      echo "$1:$2" > .data/last
+      echo
+      if [[ -z $(cat .data/credentials | grep "$1:$2") ]]; then
+        read -p "Do you want to save $name's credentials ? [y/n] " choice
+        case "$choice" in
+          y) echo "$1:$2" >> .data/credentials;
+        esac
+      fi
+      echo "$request" > .data/home
+      token=$(echo "$request" | jq -r .token)
+    fi
+    if [[ $(echo "$request" | jq -r .data.accounts[].typeCompte) == 'E' ]]; then
+      session="Student account : $name $fname"
+      mainMenu
+    else
+      loginMenu 'error' 'Not a studient account'
+    fi
+
+}
+
+mainMenu() {
+
+  clear
+  logo
+  case "$1" in
+    error) echo -e "\e[31mERROR : $2\e[0m";;
+    info) echo -e "\e[33mINFO : $2\e[0m";;
+    silent) echo "$2"
+  esac
+  echo "$session"
+  unset dashes content
+  cols=$(tput cols)
+  for ((i=11; i < "$cols-1"; i+=2)); do dashes+='-'; done
+  echo -e "\e[34m\n$dashes MAIN MENU $dashes\n\e[0m"
+  if [[ "$localData" != 'true' ]]; then
+    echo -e "\e[36m[g] - Analyse grades\e[0m"
+  else
+    if [[ $(du -b .data/grades | cut -f -1) != 0 ]]; then
+      echo -e "\e[36m[g] - Analyse grades\e[0m"
+      content=true
+    fi
+    if [[ "$content" != 'true' ]]; then
+      echo "> No local content found"
+    fi
+  fi
+  echo -e "\e[33m\n[l] - Log out\e[0m"
+  echo -e "\e[31m[e] - Exit\n\e[0m"
+  read -p "Option : " choice
+  case "$choice" in
+    g) calcGrades
+       mainMenu;;
+    l) loginMenu
+       return;;
+    e) echo
+       exit;;
+    *) mainMenu 'error' 'Invalid input'
+       renturn;;
+  esac
+
+}
+
+calcGrades() {
+
+  # Fetch data
+  clear
+  if [[ "$localData" != 'true' ]]; then
+    echo -e "\nFetching grades..."
+    grades=$(curl -s 'https://api.ecoledirecte.com/v3/eleves/'"$(echo $request | jq -r .data.accounts[].id)"'/notes.awp?verbe=get&v=4.6.0' \
+    -H 'x-token: '"$token"'' -d 'data={"anneeScolaire":""}')
+    readarray -t json <<< $(echo "$grades" | jq -r .data.notes[])
+    echo "$grades" > .data/grades
+  else
+    readarray -t json <<< $(cat .data/grades | jq -r .data.notes[])
+  fi
+
+  # Load data
+  cols=$(tput cols)
+  if (( "$cols" < 46 )); then echo Terminal too small; exit; fi
+  readarray -t json <<< $(cat .data/grades | jq -r .data.notes[])
+  unset dashes devoir codePeriode libelleMatiere typeDevoir coef noteSur valeur moyenneClasse minClasse maxClasse
+  lines="${#json[@]}"
+  for ((i=13; i < "$cols"-1; i+=2)); do dashes+='-'; done
+  for ((i=1; i < "$lines"; i++)); do
+    [[ "${json[i]:3:4}" == 'devo' ]] && devoir+=(" | ${json[i]:13:-2}") && continue
+    [[ "${json[i]:4:4}" == 'odeP' ]] && codePeriode+=("${json[i]:18:-2}") && continue
+    [[ "${json[i]:3:4}" == 'libe' ]] && libelleMatiere+=("${json[i]:21:-2}") && continue
+    [[ "${json[i]:3:4}" == 'type' ]] && typeDevoir+=("${json[i]:17:-2}") && continue
+    [[ "${json[i]:3:4}" == 'coef' ]] && coef+=("${json[i]:11:-2}") && continue
+    [[ "${json[i]:3:4}" == 'note' ]] && noteSur+=("${json[i]:14:-2}") && continue
+    [[ "${json[i]:6:4}" == 'eur"' ]] && valeur+=("${json[i]:13:-2}") && continue
+    [[ "${json[i]:3:4}" == 'moye' ]] && moyenneClasse+=("${json[i]:20:-2}") && continue
+    [[ "${json[i]:3:4}" == 'minC' ]] && minClasse+=("${json[i]:16:-2}") && continue
+    [[ "${json[i]:3:4}" == 'maxC' ]] && maxClasse+=("${json[i]:16:-2}")
+  done
+
+  # Display data
+  for ((i=0; i < "${#codePeriode[@]}"; i++)); do
+    if [[ "${valeur[i]}" != 'Abs ' ]]; then
+      valeur[i]="${valeur[i]//[^0-9,]/}"
+      valeur[i]="${valeur[i]/,/.}"
+    else
+      valeur[i]=''
+    fi
+    noteSur[i]="${noteSur[i]//[^0-9,]/}"
+    noteSur[i]="${noteSur[i]/,/.}"
+    coef[i]="${coef[i]//[^0-9,]/}"
+    coef[i]="${coef[i]/,/.}"
+  #  currentCoefSubject="$currentCoef*${coefSubject[${libelleMatiere[i]}]}"
+    if [[ "${codePeriode[i-1]}" != "${codePeriode[i]}" ]]; then
+      trimester=$(egrep -o '[1-3]' <<< "${codePeriode[i]}")
+      echo -e "\n$dashes TRIMESTRE $trimester $dashes\n"
+    fi
+    case "${typeDevoir[i]}" in
+      "Interrogation écrite") typeDevoir[i]='IE  ';;
+      "Devoir Surveillé") typeDevoir[i]='DS  ';;
+      "Évaluation orale") typeDevoir[i]='ORAL';;
+      "Devoir à la maison") typeDevoir[i]='DNS ';;
+      "Travaux Pratiques") typeDevoir[i]='TP  ';;
+      "Activités sportives") typeDevoir[i]='IE  ';;
+    esac
+    case "${libelleMatiere[i]}" in
+      "ANGLAIS LV1") libelleMatiere[i]='ANG ';;
+      "ED.PHYSIQUE & SPORT.") libelleMatiere[i]='EPS ';;
+      "ENS. MORAL & CIVIQUE") libelleMatiere[i]='EMC ';;
+      "ENSEIGN.SCIENTIFIQUE") libelleMatiere[i]='E-S ';;
+      "ESPAGNOL LV2") libelleMatiere[i]='ESP ';;
+      "EURO ANGLAIS - DNL:Maths") libelleMatiere[i]='EURO';;
+      "HISTOIRE-GEOGRAPHIE") libelleMatiere[i]='H-G ';;
+      "MATHEMATIQUES") libelleMatiere[i]='MATH';;
+      "MATHS EXPERTES") libelleMatiere[i]='MEXP';;
+      "PHILOSOPHIE") libelleMatiere[i]='PHI ';;
+      "PHYSIQUE-CHIMIE") libelleMatiere[i]='P-C ';;
+      *) echo "ERREUR : la matière ${libelleMatiere[i]} n'est pas supportée"; break;;
+    esac
+    if [[ -n "${valeur[i]}" && -n "${noteSur[i]}" && -n "${coef[i]}" ]]; then
+      toAdd="+(${valeur[i]}/${noteSur[i]})*${coef[i]}"
+      case "${libelleMatiere[i]}" in
+        "ANG ") gradesANG+=("$toAdd"); coefANG+=("+${coef[i]}");;
+        "EPS ") gradesEPS+=("$toAdd"); coefEPS+=("+${coef[i]}");;
+        "EMC ") gradesEMC+=("$toAdd"); coefEMC+=("+${coef[i]}");;
+        "E-S ") gradesES+=("$toAdd"); coefES+=("+${coef[i]}");;
+        "ESP ") gradesESP+=("$toAdd"); coefESP+=("+${coef[i]}");;
+        "EURO") gradesEURO+=("$toAdd"); coefEURO+=("+${coef[i]}");;
+        "H-G ") gradesHG+=("$toAdd"); coefHG+=("+${coef[i]}");;
+        "MATH") gradesMATHS+=("$toAdd"); coefMATHS+=("+${coef[i]}");;
+        "MEXP") gradesMATHSEXP+=("$toAdd"); coefMATHSEXP+=("+${coef[i]}");;
+        "PHI ") gradesPHILO+=("$toAdd"); coefPHILO+=("+${coef[i]}");;
+        "P-C ") gradesPC+=("$toAdd"); coefPC+=("+${coef[i]}");;
+        *) echo "ERREUR : la matière ${libelleMatiere[i]} n'est pas supportée"; break;;
+      esac
+    fi
+    printf '%s | %s | %4.1f/%2.0f (%4.1f) | %4.1f %4.1f %4.1f%s\n' "${libelleMatiere[i]}" "${typeDevoir[i]}" "${valeur[i]}" "${noteSur[i]}" "${coef[i]}" "${minClasse[i]}" "${moyenneClasse[i]}" "${maxClasse[i]}" "${devoir[i]:0:$(($(tput co)-45))}"
+    if [[ "${codePeriode[i]}" != "${codePeriode[i+1]}" ]]; then
+      echo
+      if [[ -n "$gradesANG" ]]; then printf "MOYENNE D' ANG  : %5.2f\n" $(echo "scale=3;(0${gradesANG[@]})/(0${coefANG[@]})*20" | bc); fi
+      if [[ -n "$gradesEPS" ]]; then printf "MOYENNE D' EPS  : %5.2f\n" $(echo "scale=3;(0${gradesEPS[@]})/(0${coefEPS[@]})*20" | bc); fi
+      if [[ -n "$gradesEMC" ]]; then printf "MOYENNE D' EMC  : %5.2f\n" $(echo "scale=3;(0${gradesEMC[@]})/(0${coefEMC[@]})*20" | bc); fi
+      if [[ -n "$gradesES" ]]; then printf "MOYENNE D' E-S  : %5.2f\n" $(echo "scale=3;(0${gradesES[@]})/(0${coefES[@]})*20" | bc); fi
+      if [[ -n "$gradesESP" ]]; then printf "MOYENNE D' ESP  : %5.2f\n" $(echo "scale=3;(0${gradesESP[@]})/(0${coefESP[@]})*20" | bc); fi
+      if [[ -n "$gradesEURO" ]]; then printf "MOYENNE D' EURO : %5.2f\n" $(echo "scale=3;(0${gradesEURO[@]})/(0${coefEURO[@]})*20" | bc); fi
+      if [[ -n "$gradesHG" ]]; then printf "MOYENNE D' H-G  : %5.2f\n" $(echo "scale=3;(0${gradesHG[@]})/(0${coefHG[@]})*20" | bc); fi
+      if [[ -n "$gradesMATHS" ]]; then printf "MOYENNE DE MATH : %5.2f\n" $(echo "scale=3;(0${gradesMATHS[@]})/(0${coefMATHS[@]})*20" | bc); fi
+      if [[ -n "$gradesMATHSEXP" ]]; then printf "MOYENNE DE MEXP : %5.2f\n" $(echo "scale=3;(0${gradesMATHSEXP[@]})/(0${coefMATHSEXP[@]})*20" | bc); fi
+      if [[ -n "$gradesPHILO" ]]; then printf "MOYENNE DE PHI  : %5.2f\n" $(echo "scale=3;(0${gradesPHILO[@]})/(0${coefPHILO[@]})*20" | bc); fi
+      if [[ -n "$gradesPC" ]]; then printf "MOYENNE DE P-C  : %5.2f\n" $(echo "scale=3;(0${gradesPC[@]})/(0${coefPC[@]})*20" | bc); fi
+      unset gradesANG coefANG gradesEPS coefEPS gradesEMC coefEMC gradesES coefES gradesESP coefESP gradesEURO coefEURO gradesHG coefHG gradesMATHS coefMATHS gradesMATHSEXP coefMATHSEXP gradesPHILO coefPHILO gradesPC coefPC
+    fi
+  done
+  echo
+  read -p "Press enter to continue"
+
+}
+
+loginMenu
