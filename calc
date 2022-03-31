@@ -1,33 +1,60 @@
 #!/bin/bash
 
+# Login
+if (( $(tput cols) < 46 )); then echo Terminal too small; exit; fi
+if [[ "$1" != 't' ]]; then
+  source ~/.keys
+  if [[ -z "$ED_USERNAME" || -z "$ED_PASS" ]]; then
+    read -p "username : " ED_USERNAME
+    read -p "password : " ED_PASS
+  fi
+  echo "Connecting as $ED_USERNAME..."
+  request=$(curl -s 'https://api.ecoledirecte.com/v3/login.awp?v=4.6.0' \
+  -d 'data={"identifiant":"'"$ED_USERNAME"'","motdepasse":"'"$ED_PASS"'"}')
+  echo "Welcome $(echo $request | jq -r .data.accounts[].prenom) $(echo $request | jq -r .data.accounts[].nom)"
+  token=$(echo "$request" | jq -r .token)
+  echo "$request" > session
+  if [[ $(echo "$request" | jq -r .data.accounts[].typeCompte) == 'E' ]]; then
+    echo "Compte élève détecté."
+    echo "Fetching grades..."
+    grades=$(curl -s 'https://api.ecoledirecte.com/v3/eleves/'"$(echo $request | jq -r .data.accounts[].id)"'/notes.awp?verbe=get&v=4.6.0' \
+    -H 'x-token: '"$token"'' -d 'data={"anneeScolaire":""}')
+    readarray -t json <<< $(echo "$grades" | jq -r .data.notes[])
+    echo "$grades" > grades
+  else
+    echo "Not a studient account. Quitting..."
+    exit
+  fi
+else
+  readarray -t json <<< $(cat grades | jq -r .data.notes[])
+fi
+
 # Load data
-if (( $(tput co) < 46 )); then echo Terminal too small; exit; fi
-for ((i=13; i < $(tput co)-1; i=i+2)); do dashes+='-'; done
-readarray -t json <<< $(cat notes | jq -r .data.notes[])
 lines="${#json[@]}"
+for ((i=13; i < $(tput cols)-1; i=i+2)); do dashes+='-'; done
 for ((i=3; i < "$lines"; i++)); do
-  [[ "${json[i]:3:4}" =~ 'devo' ]] && devoir+=(" | ${json[i]:13:-2}")
-  [[ "${json[i]}" =~ '"codePeriode":' ]] && codePeriode+=("${json[i]:18:-2}")
-  [[ "${json[i]}" =~ '"libelleMatiere":' ]] && libelleMatiere+=("${json[i]:21:-2}")
-  [[ "${json[i]}" =~ '"typeDevoir":' ]] && typeDevoir+=("${json[i]:17:-2}")
-  [[ "${json[i]}" =~ '"coef":' ]] && coef+=("${json[i]:11:-2}")
-  [[ "${json[i]}" =~ '"noteSur":' ]] && noteSur+=("${json[i]:14:-2}")
-  [[ "${json[i]}" =~ '"valeur":' ]] && valeur+=("${json[i]:13:-2}")
-  [[ "${json[i]}" =~ '"moyenneClasse":' ]] && moyenneClasse+=("${json[i]:20:-2}")
-  [[ "${json[i]}" =~ '"minClasse":' ]] && minClasse+=("${json[i]:16:-2}")
-  [[ "${json[i]}" =~ '"maxClasse":' ]] && maxClasse+=("${json[i]:16:-2}")
+  [[ "${json[i]:3:4}" == 'devo' ]] && devoir+=(" | ${json[i]:13:-2}")
+  [[ "${json[i]:3:11}" == 'codePeriode' ]] && codePeriode+=("${json[i]:18:-2}")
+  [[ "${json[i]:3:4}" == 'libe' ]] && libelleMatiere+=("${json[i]:21:-2}")
+  [[ "${json[i]:3:4}" == 'type' ]] && typeDevoir+=("${json[i]:17:-2}")
+  [[ "${json[i]:3:4}" == 'coef' ]] && coef+=("${json[i]:11:-2}")
+  [[ "${json[i]:3:4}" == 'note' ]] && noteSur+=("${json[i]:14:-2}")
+  [[ "${json[i]:2:5}" == '"valeur"' ]] && valeur+=("${json[i]:13:-2}")
+  [[ "${json[i]:3:4}" == 'moye' ]] && moyenneClasse+=("${json[i]:20:-2}")
+  [[ "${json[i]:3:4}" == 'minC' ]] && minClasse+=("${json[i]:16:-2}")
+  [[ "${json[i]:3:4}" == 'maxC' ]] && maxClasse+=("${json[i]:16:-2}")
 done
 echo devoir ${#devoir[@]}
 echo codePer ${#codePeriode[@]}
 echo libelleMatiere ${#libelleMatiere[@]}
 echo typeDevoir ${#typeDevoir[@]}
-echo  ${#[@]}
-echo  ${#[@]}
-echo  ${#[@]}
-echo  ${#[@]}
-echo  ${#[@]}
+echo coef ${#coef[@]}
+echo noteSur ${#noteSur[@]}
+echo valeur ${#valeur[@]}
+echo moyenneClasse ${#moyenneClasse[@]}
+echo minClasse ${#minClasse[@]}
+echo maxClasse ${#maxClasse[@]}
 
-exit
 # Display data
 for ((i=0; i < "${#codePeriode[@]}"; i++)); do
   if [[ "${valeur[i]}" != 'Abs ' ]]; then
