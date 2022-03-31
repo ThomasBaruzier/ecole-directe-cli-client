@@ -175,7 +175,7 @@ calcGrades() {
   # Load data
   clear
   cols=$(tput cols)
-  if (( "$cols" < 46 )); then echo Terminal too small; return; fi
+  if (( "$cols" < 46 )); then mainMenu 'error' 'Terminal too small'; return; fi
   readarray -t json <<< $(cat .data/grades | jq -r .data.notes[])
   unset dashes devoir codePeriode libelleMatiere typeDevoir coef noteSur valeur moyenneClasse minClasse maxClasse
   lines="${#json[@]}"
