@@ -1,10 +1,21 @@
-Ce script pour bash vous permet de calculer vos moyennes école directe sans avoir à attendre 2-3 jours que cela se fasse sur le site.
+# Ecole Directe CLI client
 
-Pour l'instant, le programme est semi-automatisé, il faut récuperer les données manuellement.
-Pour ce faire, rendez-vous sur la page avec vos notes sur école directe.
-De là, entrez dans les options developpeur en appuyant sur F12.
-Allez dans la catégorie "Network" ou "Réseau", et rechargez la page.
-Chechez la requête "notes.awp". Cliquez dessus, allez dans la catégorie "Response" ou "Réponse", copiez l'integralité de celle-ci, et enregistrez tout cela dans un fichier "notes", situé dans le même répertoire que le script.
-Il n'y a plus qu'à exécuter celui-ci pour obtenir vos moyennes.
+Hi all!
+I have been working hard on this app since a few days and I am proud to announce that my Ecole Directe grade calculator repo have been upgraded to this current CLI client.
+Is has way more features, and it is modular. This means that I will be able to easily add bew exiting updates in the future!
 
-Attention : pour le moment peu de matières sont supportées, et il faut éditer les coefficients manuellement.
+##Features :
+- Easy authentification with elegant UI
+- Multi account support with credentials storage capabilities
+- Fast log on last account
+- Offline mode, based on data from last online session
+- Detect studient and teacher accounts
+- Perform better grades analysis than Ecole Directe (real-time averages)
+
+##Todo :
+- Fix false averages
+- Teacher acc support
+- More subjects support
+- Mailbox support
+- Schedule support
+- Homework notebook support
