@@ -86,7 +86,7 @@ login() {
 
     if [[ "$localData" != 'true' ]]; then
       echo "Connecting as $1..."
-      request=$(curl -s 'https://api.ecoledirecte.com/v3/login.awp?v=4.6.0' \
+      request=$(curl -# 'https://api.ecoledirecte.com/v3/login.awp?v=4.6.0' \
       -d 'data={"identifiant":"'"$1"'","motdepasse":"'"$2"'"}')
       if [[ $(echo "$request" | jq .code) != '200' ]]; then
         loginMenu 'error' 'Wrong credentials or unknown error'
@@ -162,10 +162,9 @@ mainMenu() {
 calcGrades() {
 
   # Fetch data
-  clear
   if [[ "$localData" != 'true' ]]; then
     echo -e "\nFetching grades..."
-    grades=$(curl -s 'https://api.ecoledirecte.com/v3/eleves/'"$(echo $request | jq -r .data.accounts[].id)"'/notes.awp?verbe=get&v=4.6.0' \
+    grades=$(curl -# 'https://api.ecoledirecte.com/v3/eleves/'"$(echo $request | jq -r .data.accounts[].id)"'/notes.awp?verbe=get&v=4.6.0' \
     -H 'x-token: '"$token"'' -d 'data={"anneeScolaire":""}')
     readarray -t json <<< $(echo "$grades" | jq -r .data.notes[])
     echo "$grades" > .data/grades
@@ -174,6 +173,7 @@ calcGrades() {
   fi
 
   # Load data
+  clear
   cols=$(tput cols)
   if (( "$cols" < 46 )); then echo Terminal too small; exit; fi
   readarray -t json <<< $(cat .data/grades | jq -r .data.notes[])
