@@ -99,7 +99,6 @@ login() {
     fname=$(echo "$request" | jq -r .data.accounts[].nom)
     if [[ "$localData" != 'true' ]]; then
       echo "$1:$2" > .data/last
-      echo
       if [[ -z $(cat .data/credentials | grep "$1:$2") ]]; then
         read -p "Do you want to save $name's credentials ? [y/n] " choice
         case "$choice" in
@@ -147,7 +146,9 @@ mainMenu() {
   echo -e "\e[31m[e] - Exit\n\e[0m"
   read -p "Option : " choice
   case "$choice" in
-    g) calcGrades
+    g) cols=$(tput cols)
+       if (( "$cols" < 46 )); then mainMenu 'error' 'Terminal too small'; return; fi
+       calcGrades
        mainMenu;;
     l) loginMenu
        return;;
