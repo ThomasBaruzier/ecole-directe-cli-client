@@ -178,11 +178,11 @@ calcGrades() {
   cols=$(tput cols)
   if (( "$cols" < 46 )); then mainMenu 'error' 'Terminal too small'; return; fi
   readarray -t json <<< $(cat .data/grades | jq -r .data.notes[])
-  unset dashes devoir codePeriode libelleMatiere typeDevoir coef noteSur valeur moyenneClasse minClasse maxClasse
+  unset toPrint dashes devoir codePeriode libelleMatiere typeDevoir coef noteSur valeur moyenneClasse minClasse maxClasse
   lines="${#json[@]}"
   for ((i=13; i < "$cols"-1; i+=2)); do dashes+='-'; done
   for ((i=1; i < "$lines"; i++)); do
-    [[ "${json[i]:3:4}" == 'devo' ]] && devoir+=(" | ${json[i]:13:-2}") && continue
+    [[ "${json[i]:3:4}" == 'devo' ]] && devoir+=(" | \e[32m${json[i]:13:-2}") && continue
     [[ "${json[i]:4:4}" == 'odeP' ]] && codePeriode+=("${json[i]:18:-2}") && continue
     [[ "${json[i]:3:4}" == 'libe' ]] && libelleMatiere+=("${json[i]:21:-2}") && continue
     [[ "${json[i]:3:4}" == 'type' ]] && typeDevoir+=("${json[i]:17:-2}") && continue
@@ -209,7 +209,7 @@ calcGrades() {
   #  currentCoefSubject="$currentCoef*${coefSubject[${libelleMatiere[i]}]}"
     if [[ "${codePeriode[i-1]}" != "${codePeriode[i]}" ]]; then
       trimester=$(egrep -o '[1-3]' <<< "${codePeriode[i]}")
-      echo -e "\n$dashes TRIMESTRE $trimester $dashes\n"
+      toPrint+=(echo -e "\n$dashes TRIMESTRE $trimester $dashes\n")
     fi
     case "${typeDevoir[i]}" in
       "Interrogation écrite") typeDevoir[i]='IE  ';;
@@ -250,22 +250,25 @@ calcGrades() {
         *) echo "ERREUR : la matière ${libelleMatiere[i]} n'est pas supportée"; break;;
       esac
     fi
-    printf '%s | %s | %4.1f/%2.0f (%4.1f) | %4.1f %4.1f %4.1f%s\n' "${libelleMatiere[i]}" "${typeDevoir[i]}" "${valeur[i]}" "${noteSur[i]}" "${coef[i]}" "${minClasse[i]}" "${moyenneClasse[i]}" "${maxClasse[i]}" "${devoir[i]:0:$(($(tput cols)-45))}"
+    toPrint+=("$(printf '\e[35m%s\e[0m | \e[34m%s\e[0m | \e[33m%4.1f/%2.0f\e[0m \e[31m(%4.1f)\e[0m | \e[36m%4.1f %4.1f %4.1f\e[0m%s\e[0m\n' "${libelleMatiere[i]}" "${typeDevoir[i]}" "${valeur[i]}" "${noteSur[i]}" "${coef[i]}" "${minClasse[i]}" "${moyenneClasse[i]}" "${maxClasse[i]}" "${devoir[i]:0:$((cols-45))}"))
     if [[ "${codePeriode[i]}" != "${codePeriode[i+1]}" ]]; then
-      echo
-      if [[ -n "$gradesANG" ]]; then printf "MOYENNE D' ANG  : %5.2f\n" $(echo "scale=3;(0${gradesANG[@]})/(0${coefANG[@]})*20" | bc); fi
-      if [[ -n "$gradesEPS" ]]; then printf "MOYENNE D' EPS  : %5.2f\n" $(echo "scale=3;(0${gradesEPS[@]})/(0${coefEPS[@]})*20" | bc); fi
-      if [[ -n "$gradesEMC" ]]; then printf "MOYENNE D' EMC  : %5.2f\n" $(echo "scale=3;(0${gradesEMC[@]})/(0${coefEMC[@]})*20" | bc); fi
-      if [[ -n "$gradesES" ]]; then printf "MOYENNE D' E-S  : %5.2f\n" $(echo "scale=3;(0${gradesES[@]})/(0${coefES[@]})*20" | bc); fi
-      if [[ -n "$gradesESP" ]]; then printf "MOYENNE D' ESP  : %5.2f\n" $(echo "scale=3;(0${gradesESP[@]})/(0${coefESP[@]})*20" | bc); fi
-      if [[ -n "$gradesEURO" ]]; then printf "MOYENNE D' EURO : %5.2f\n" $(echo "scale=3;(0${gradesEURO[@]})/(0${coefEURO[@]})*20" | bc); fi
-      if [[ -n "$gradesHG" ]]; then printf "MOYENNE D' H-G  : %5.2f\n" $(echo "scale=3;(0${gradesHG[@]})/(0${coefHG[@]})*20" | bc); fi
-      if [[ -n "$gradesMATHS" ]]; then printf "MOYENNE DE MATH : %5.2f\n" $(echo "scale=3;(0${gradesMATHS[@]})/(0${coefMATHS[@]})*20" | bc); fi
-      if [[ -n "$gradesMATHSEXP" ]]; then printf "MOYENNE DE MEXP : %5.2f\n" $(echo "scale=3;(0${gradesMATHSEXP[@]})/(0${coefMATHSEXP[@]})*20" | bc); fi
-      if [[ -n "$gradesPHILO" ]]; then printf "MOYENNE DE PHI  : %5.2f\n" $(echo "scale=3;(0${gradesPHILO[@]})/(0${coefPHILO[@]})*20" | bc); fi
-      if [[ -n "$gradesPC" ]]; then printf "MOYENNE DE P-C  : %5.2f\n" $(echo "scale=3;(0${gradesPC[@]})/(0${coefPC[@]})*20" | bc); fi
+      toPrint+=(echo)
+      if [[ -n "$gradesANG" ]]; then toPrint+=("$(printf MOYENNE D' ANG  : %5.2f\n $(echo scale=3;(0${gradesANG[@]})/(0${coefANG[@]})*20 | bc))"); fi
+      if [[ -n "$gradesEPS" ]]; then toPrint+=("$(printf MOYENNE D' EPS  : %5.2f\n $(echo scale=3;(0${gradesEPS[@]})/(0${coefEPS[@]})*20 | bc))"); fi
+      if [[ -n "$gradesEMC" ]]; then toPrint+=("$(printf MOYENNE D' EMC  : %5.2f\n $(echo scale=3;(0${gradesEMC[@]})/(0${coefEMC[@]})*20 | bc))"); fi
+      if [[ -n "$gradesES" ]]; then toPrint+=("$(printf MOYENNE D' E-S  : %5.2f\n $(echo scale=3;(0${gradesES[@]})/(0${coefES[@]})*20 | bc))"); fi
+      if [[ -n "$gradesESP" ]]; then toPrint+=("$(printf MOYENNE D' ESP  : %5.2f\n $(echo scale=3;(0${gradesESP[@]})/(0${coefESP[@]})*20 | bc))"); fi
+      if [[ -n "$gradesEURO" ]]; then toPrint+=("$(printf MOYENNE D' EURO : %5.2f\n $(echo scale=3;(0${gradesEURO[@]})/(0${coefEURO[@]})*20 | bc))"); fi
+      if [[ -n "$gradesHG" ]]; then toPrint+=("$(printf MOYENNE D' H-G  : %5.2f\n $(echo scale=3;(0${gradesHG[@]})/(0${coefHG[@]})*20 | bc))"); fi
+      if [[ -n "$gradesMATHS" ]]; then toPrint+=("$(printf MOYENNE DE MATH : %5.2f\n $(echo scale=3;(0${gradesMATHS[@]})/(0${coefMATHS[@]})*20 | bc))"); fi
+      if [[ -n "$gradesMATHSEXP" ]]; then toPrint+=("$(printf MOYENNE DE MEXP : %5.2f\n $(echo scale=3;(0${gradesMATHSEXP[@]})/(0${coefMATHSEXP[@]})*20 | bc))"); fi
+      if [[ -n "$gradesPHILO" ]]; then toPrint+=("$(printf MOYENNE DE PHI  : %5.2f\n $(echo scale=3;(0${gradesPHILO[@]})/(0${coefPHILO[@]})*20 | bc))"); fi
+      if [[ -n "$gradesPC" ]]; then toPrint+=("$(printf MOYENNE DE P-C  : %5.2f\n $(echo scale=3;(0${gradesPC[@]})/(0${coefPC[@]})*20 | bc))"); fi
       unset gradesANG coefANG gradesEPS coefEPS gradesEMC coefEMC gradesES coefES gradesESP coefESP gradesEURO coefEURO gradesHG coefHG gradesMATHS coefMATHS gradesMATHSEXP coefMATHSEXP gradesPHILO coefPHILO gradesPC coefPC
     fi
+  done
+  for ((i=0; i < "${#toPrint[@]}"; i++)); do
+    echo "${toPrint[i]}"
   done
   echo
   read -p "Press enter to continue"
