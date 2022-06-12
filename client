@@ -250,7 +250,7 @@ calcGrades() {
         *) echo "ERREUR : la matière ${libelleMatiere[i]} n'est pas supportée"; break;;
       esac
     fi
-    toPrint+=("$(printf '\e[35m%s\e[0m | \e[34m%s\e[0m | \e[33m%4.1f/%2.0f\e[0m \e[31m(%4.1f)\e[0m | \e[36m%4.1f %4.1f %4.1f\e[0m%s\e[0m\n' "${libelleMatiere[i]}" "${typeDevoir[i]}" "${valeur[i]}" "${noteSur[i]}" "${coef[i]}" "${minClasse[i]}" "${moyenneClasse[i]}" "${maxClasse[i]}" "${devoir[i]:0:$((cols-45))}"))
+    toPrint+=("$(printf '\e[35m%s\e[0m | \e[34m%s\e[0m | \e[33m%4.1f/%2.0f\e[0m \e[31m(%4.1f)\e[0m | \e[36m%4.1f %4.1f %4.1f\e[0m%s\e[0m\n' ${libelleMatiere[i]} ${typeDevoir[i]} ${valeur[i]} ${noteSur[i]} ${coef[i]} ${minClasse[i]} ${moyenneClasse[i]} ${maxClasse[i]} ${devoir[i]:0:$((cols-45))}"))
     if [[ "${codePeriode[i]}" != "${codePeriode[i+1]}" ]]; then
       toPrint+=(echo)
       if [[ -n "$gradesANG" ]]; then toPrint+=("$(printf MOYENNE D' ANG  : %5.2f\n $(echo scale=3;(0${gradesANG[@]})/(0${coefANG[@]})*20 | bc))"); fi
