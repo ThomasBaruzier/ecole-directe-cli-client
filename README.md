@@ -1,3 +1,5 @@
+# Project is outdated. Please do not use it.
+
 # Ecole Directe CLI client
 
 Hi all!
